@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useTransactionsStore } from '~/stores/transactions'
-import type { Transaction, ImportSession } from '~/types'
+import type { Transaction, ImportSession, Goal } from '~/types'
 
 // Mock the db layer — store logic tested in isolation
 vi.mock('~/utils/db', () => ({
@@ -341,5 +341,84 @@ describe('useTransactionsStore — previousYearMonth', () => {
     store.transactions = [makeTx({ date: '2026-03-10' }), makeTx({ date: '2026-05-10' })]
     expect(store.currentYearMonth).toBe('2026-05')
     expect(store.previousYearMonth).toBe('2026-04')
+  })
+})
+
+describe('useTransactionsStore — totalForGoal', () => {
+  const goal: Goal = {
+    id: 'g1',
+    label: 'Épargne',
+    icon: 'i-lucide-piggy-bank',
+    color: 'violet',
+    targetAmount: 5000,
+    scope: 'emma',
+    categoryKey: 'goal-epargne',
+    createdAt: '2026-01-01'
+  }
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('retourne 0 quand aucune transaction n\'est rattachée', () => {
+    const store = useTransactionsStore()
+    store.goals = [goal]
+    expect(store.totalForGoal(goal)).toBe(0)
+  })
+
+  it('additionne les versements vers l\'épargne', () => {
+    const store = useTransactionsStore()
+    store.transactions = [
+      makeTx({ person: 'emma', category: 'goal-epargne', direction: 'debit', amount: 754 }),
+      makeTx({ person: 'emma', category: 'goal-epargne', direction: 'debit', amount: 150 })
+    ]
+    expect(store.totalForGoal(goal)).toBe(904)
+  })
+
+  it('soustrait les retraits d\'épargne', () => {
+    const store = useTransactionsStore()
+    store.transactions = [
+      makeTx({ person: 'emma', category: 'goal-epargne', direction: 'debit', amount: 754 }),
+      makeTx({ person: 'emma', category: 'goal-epargne', direction: 'credit', amount: 1500 })
+    ]
+    expect(store.totalForGoal(goal)).toBe(-746)
+  })
+
+  it('ignore les transactions d\'une autre personne', () => {
+    const store = useTransactionsStore()
+    store.transactions = [
+      makeTx({ person: 'emma', category: 'goal-epargne', direction: 'debit', amount: 754 }),
+      makeTx({ person: 'thomas', category: 'goal-epargne', direction: 'debit', amount: 999 })
+    ]
+    expect(store.totalForGoal(goal)).toBe(754)
+  })
+
+  it('cumule les deux personnes sur un objectif commun', () => {
+    const store = useTransactionsStore()
+    const commun: Goal = { ...goal, scope: 'commun' }
+    store.transactions = [
+      makeTx({ person: 'emma', category: 'goal-epargne', direction: 'debit', amount: 754 }),
+      makeTx({ person: 'thomas', category: 'goal-epargne', direction: 'debit', amount: 246 })
+    ]
+    expect(store.totalForGoal(commun)).toBe(1000)
+  })
+
+  it('tient compte d\'une recatégorisation manuelle', () => {
+    const store = useTransactionsStore()
+    const tx = makeTx({ person: 'emma', category: 'alimentation', direction: 'debit', amount: 300 })
+    store.transactions = [tx]
+    expect(store.totalForGoal(goal)).toBe(0)
+    store.overrides = { [tx.id]: 'goal-epargne' }
+    expect(store.totalForGoal(goal)).toBe(300)
+  })
+
+  it('cumule toutes les périodes, pas seulement le mois sélectionné', () => {
+    const store = useTransactionsStore()
+    store.selectedYearMonth = '2026-08'
+    store.transactions = [
+      makeTx({ person: 'emma', category: 'goal-epargne', direction: 'debit', amount: 400, date: '2026-08-10' }),
+      makeTx({ person: 'emma', category: 'goal-epargne', direction: 'debit', amount: 600, date: '2026-03-10' })
+    ]
+    expect(store.totalForGoal(goal)).toBe(1000)
   })
 })

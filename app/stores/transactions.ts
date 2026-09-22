@@ -154,11 +154,14 @@ export const useTransactionsStore = defineStore('transactions', () => {
     customCategories.value = customCategories.value.filter(c => c.key !== key)
   }
 
+  // Un versement vers l'epargne sort du compte (debit) et alimente l'objectif ;
+  // un retrait y revient (credit) et le diminue. amount etant toujours positif,
+  // c'est la direction qui porte le signe.
   function totalForGoal(goal: Goal): number {
     const persons: Person[] = goal.scope === 'commun' ? ['thomas', 'emma'] : [goal.scope]
     return transactions.value
       .filter(t => persons.includes(t.person) && effectiveCategory(t) === goal.categoryKey)
-      .reduce((s, t) => s + t.amount, 0)
+      .reduce((s, t) => t.direction === 'debit' ? s + t.amount : s - t.amount, 0)
   }
 
   async function addGoal(goal: Goal) {

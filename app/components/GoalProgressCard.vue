@@ -8,7 +8,7 @@ const props = defineProps<{ goal: Goal }>()
 const store = useTransactionsStore()
 
 const saved = computed(() => store.totalForGoal(props.goal))
-const pct = computed(() => Math.min((saved.value / props.goal.targetAmount) * 100, 100))
+const pct = computed(() => Math.min(Math.max((saved.value / props.goal.targetAmount) * 100, 0), 100))
 const remaining = computed(() => Math.max(props.goal.targetAmount - saved.value, 0))
 const color = computed(() => TAILWIND_HEX[props.goal.color] ?? '#6b7280')
 const isComplete = computed(() => saved.value >= props.goal.targetAmount)
