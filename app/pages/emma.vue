@@ -200,7 +200,10 @@ const emmaAlerts = computed(() => store.budgetAlerts('emma'))
             <h3 class="text-sm font-semibold text-default">
               Objectifs
             </h3>
-            <GoalsModal person="emma" inline />
+            <GoalsModal
+              person="emma"
+              inline
+            />
           </div>
           <div
             v-if="emmaGoals.length"

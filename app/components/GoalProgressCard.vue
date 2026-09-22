@@ -22,7 +22,10 @@ const isComplete = computed(() => saved.value >= props.goal.targetAmount)
         class="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
         :style="{ background: color + '20', color }"
       >
-        <UIcon :name="goal.icon" class="text-sm" />
+        <UIcon
+          :name="goal.icon"
+          class="text-sm"
+        />
       </div>
       <div class="flex-1 min-w-0">
         <p class="text-sm font-medium text-default truncate">
@@ -33,7 +36,10 @@ const isComplete = computed(() => saved.value >= props.goal.targetAmount)
         </p>
       </div>
       <div class="text-right shrink-0">
-        <p class="text-sm font-bold tabular-nums" :style="{ color: isComplete ? '#10b981' : color }">
+        <p
+          class="text-sm font-bold tabular-nums"
+          :style="{ color: isComplete ? '#10b981' : color }"
+        >
           {{ formatCurrency(saved) }}
         </p>
         <p class="text-xs text-muted tabular-nums">
@@ -55,10 +61,16 @@ const isComplete = computed(() => saved.value >= props.goal.targetAmount)
       <span class="text-xs text-muted">
         {{ pct.toFixed(0) }}%
       </span>
-      <span v-if="isComplete" class="text-xs font-medium text-emerald-500">
+      <span
+        v-if="isComplete"
+        class="text-xs font-medium text-emerald-500"
+      >
         Objectif atteint 🎉
       </span>
-      <span v-else class="text-xs text-muted tabular-nums">
+      <span
+        v-else
+        class="text-xs text-muted tabular-nums"
+      >
         {{ formatCurrency(remaining) }} restants
       </span>
     </div>

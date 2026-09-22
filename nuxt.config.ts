@@ -11,6 +11,15 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
 
+  app: {
+    head: {
+      link: [
+        { rel: 'apple-touch-icon', href: '/icons/apple-touch-icon.png' },
+        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/icons/favicon-32.png' }
+      ]
+    }
+  },
+
   css: ['~/assets/css/main.css'],
 
   compatibilityDate: '2025-01-15',
@@ -48,15 +57,6 @@ export default defineNuxtConfig({
     },
     client: {
       installPrompt: true
-    }
-  },
-
-  app: {
-    head: {
-      link: [
-        { rel: 'apple-touch-icon', href: '/icons/apple-touch-icon.png' },
-        { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/icons/favicon-32.png' }
-      ]
     }
   }
 })

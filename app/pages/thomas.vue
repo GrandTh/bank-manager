@@ -199,7 +199,10 @@ const thomasAlerts = computed(() => store.budgetAlerts('thomas'))
             <h3 class="text-sm font-semibold text-default">
               Objectifs
             </h3>
-            <GoalsModal person="thomas" inline />
+            <GoalsModal
+              person="thomas"
+              inline
+            />
           </div>
           <div
             v-if="thomasGoals.length"

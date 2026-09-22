@@ -85,8 +85,7 @@ async function addGoal() {
     targetAmount.value = null
     selectedIcon.value = 'i-lucide-target'
     selectedColor.value = 'violet'
-  }
-  finally {
+  } finally {
     isAdding.value = false
   }
 }
@@ -96,8 +95,7 @@ async function removeGoal(id: string) {
   try {
     await store.removeGoal(id)
     toast.add({ title: 'Objectif supprimé', color: 'success', duration: 2000 })
-  }
-  finally {
+  } finally {
     deletingId.value = null
   }
 }
@@ -130,7 +128,10 @@ async function removeGoal(id: string) {
                 class="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
                 :style="{ background: (TAILWIND_HEX[g.color] ?? '#6b7280') + '20', color: TAILWIND_HEX[g.color] ?? '#6b7280' }"
               >
-                <UIcon :name="g.icon" class="text-sm" />
+                <UIcon
+                  :name="g.icon"
+                  class="text-sm"
+                />
               </div>
               <div class="flex-1 min-w-0">
                 <p class="text-sm text-default font-medium truncate">
@@ -221,7 +222,10 @@ async function removeGoal(id: string) {
                   color: TAILWIND_HEX[selectedColor] ?? '#6b7280'
                 }"
               >
-                <UIcon :name="selectedIcon" class="text-xs" />
+                <UIcon
+                  :name="selectedIcon"
+                  class="text-xs"
+                />
                 {{ label.trim() }}
               </div>
               <div class="flex-1" />
@@ -240,7 +244,12 @@ async function removeGoal(id: string) {
 
     <template #footer="{ close }">
       <div class="flex justify-end">
-        <UButton color="neutral" variant="ghost" label="Fermer" @click="close" />
+        <UButton
+          color="neutral"
+          variant="ghost"
+          label="Fermer"
+          @click="close"
+        />
       </div>
     </template>
   </UModal>
