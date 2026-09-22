@@ -37,6 +37,7 @@ function cleanLabel(raw: string): string {
 
 // Minimal CSV parser that handles multiline quoted fields with ; delimiter
 function parseCSVRows(content: string): string[][] {
+  content = content.replace(/^\uFEFF/, '')
   const rows: string[][] = []
   let row: string[] = []
   let field = ''
@@ -99,9 +100,49 @@ function parseCreditAgricole(content: string): RawTransaction[] {
   })
 }
 
-export type SupportedFormat = 'credit-agricole'
+// Colonnes Boursorama : "Solde" apparait deux fois — l'index 6 est le montant
+// signe de l'operation, l'index 10 le solde du compte apres operation.
+const BOURSORAMA_DATE = 0
+const BOURSORAMA_LABEL = 2
+const BOURSORAMA_SUGGESTED = 3
+const BOURSORAMA_AMOUNT = 6
+
+function parseBoursorama(content: string): RawTransaction[] {
+  const rows = parseCSVRows(content)
+  const headerIdx = rows.findIndex(r => r[BOURSORAMA_DATE]?.trim().startsWith('Date Op'))
+  if (headerIdx === -1) throw new Error('Format CSV Boursorama non reconnu \u2014 ligne "Date Op\u00e9ration" introuvable.')
+
+  return rows.slice(headerIdx + 1).flatMap((r) => {
+    const date = r[BOURSORAMA_DATE]?.trim()
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return []
+
+    const amount = parseAmount(r[BOURSORAMA_AMOUNT])
+    if (amount === 0) return []
+
+    const rawLabel = cleanLabel(r[BOURSORAMA_LABEL] ?? '')
+    const suggested = cleanLabel(r[BOURSORAMA_SUGGESTED] ?? '')
+
+    return [{
+      date,
+      label: suggested || rawLabel,
+      rawLabel,
+      amount: Math.abs(amount),
+      direction: amount < 0 ? 'debit' as const : 'credit' as const
+    }]
+  })
+}
+
+export type SupportedFormat = 'credit-agricole' | 'boursorama'
+
+const FORMAT_ENCODING: Record<SupportedFormat, string> = {
+  'credit-agricole': 'ISO-8859-1',
+  'boursorama': 'UTF-8'
+}
 
 export function detectFormat(fileName: string, content: string): SupportedFormat | null {
+  if (content.includes('Date Valeur') && content.includes('Pointage')) {
+    return 'boursorama'
+  }
   if (content.includes('Crédit Agricole') || content.includes('Credit Agricole') || content.includes('Compte de D')) {
     return 'credit-agricole'
   }
@@ -123,6 +164,8 @@ export function parseCSV(
 
   if (format === 'credit-agricole') {
     raw = parseCreditAgricole(content)
+  } else if (format === 'boursorama') {
+    raw = parseBoursorama(content)
   } else {
     throw new Error(`Format "${format}" non supporté.`)
   }
@@ -130,19 +173,37 @@ export function parseCSV(
   const importId = crypto.randomUUID()
   const now = new Date().toISOString()
 
-  const transactions: Transaction[] = raw.map(r => ({
-    id: makeId(person, r.date, r.direction, r.amount, r.label),
-    date: r.date,
-    label: r.label,
-    rawLabel: r.rawLabel,
-    amount: r.amount,
-    direction: r.direction,
-    category: autoCategory(r.label, r.direction),
-    person,
-    bankFormat: format as BankFormat,
-    importId,
-    importedAt: now
-  }))
+  // Une banque peut exporter plusieurs operations strictement identiques le meme
+  // jour (deux places de cinema, deux cafes). Le hash seul les confondrait et
+  // addImport en supprimerait une : on suffixe les occurrences suivantes. La
+  // premiere garde son id d'origine, pour rester idempotent avec l'existant.
+  const seen = new Map<string, number>()
+
+  const transactions: Transaction[] = raw.map((r) => {
+    const baseId = makeId(person, r.date, r.direction, r.amount, r.label)
+    const occurrence = seen.get(baseId) ?? 0
+    seen.set(baseId, occurrence + 1)
+
+    // Le libelle brut de la banque porte plus de signal que le libelle nettoye
+    // ("AVOIR ... Jow", "APPLE.COM/BILL") : on categorise dessus en priorite.
+    const category = autoCategory(r.rawLabel, r.direction)
+
+    return {
+      id: occurrence === 0 ? baseId : `${baseId}#${occurrence}`,
+      date: r.date,
+      label: r.label,
+      rawLabel: r.rawLabel,
+      amount: r.amount,
+      direction: r.direction,
+      category: category === 'non-categorise' && r.label !== r.rawLabel
+        ? autoCategory(r.label, r.direction)
+        : category,
+      person,
+      bankFormat: format as BankFormat,
+      importId,
+      importedAt: now
+    }
+  })
 
   const dates = raw.map(r => r.date).sort()
   const today = now.substring(0, 10)
@@ -158,6 +219,16 @@ export function parseCSV(
   }
 
   return { transactions, session }
+}
+
+export async function readAndDetect(file: File): Promise<{ content: string, format: SupportedFormat }> {
+  const probe = await readFileAsText(file, 'ISO-8859-1')
+  const format = detectFormat(file.name, probe)
+  if (!format) throw new Error('Format de banque non reconnu. Formats supportés : Crédit Agricole, Boursorama.')
+
+  const encoding = FORMAT_ENCODING[format]
+  const content = encoding === 'ISO-8859-1' ? probe : await readFileAsText(file, encoding)
+  return { content, format }
 }
 
 export function readFileAsText(file: File, encoding = 'ISO-8859-1'): Promise<string> {

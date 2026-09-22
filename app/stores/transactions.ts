@@ -25,7 +25,8 @@ export const useTransactionsStore = defineStore('transactions', () => {
   const previousYearMonth = computed(() => {
     if (!currentYearMonth.value) return null
     const [year, month] = currentYearMonth.value.split('-').map(Number)
-    const d = new Date(year ?? 0, month ?? 0 - 2)
+    if (!year || !month) return null
+    const d = new Date(year, month - 2)
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
   })
 

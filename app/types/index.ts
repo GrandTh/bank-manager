@@ -1,5 +1,5 @@
 export type Person = 'thomas' | 'emma'
-export type BankFormat = 'credit-agricole' | 'unknown'
+export type BankFormat = 'credit-agricole' | 'boursorama' | 'unknown'
 export type TransactionDirection = 'debit' | 'credit'
 
 export type Category = string

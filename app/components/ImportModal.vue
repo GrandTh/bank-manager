@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { readFileAsText, parseCSV, detectFormat } from '~/utils/csv'
+import { readAndDetect, parseCSV } from '~/utils/csv'
 import { formatDate } from '~/utils/formatters'
 import type { Person } from '~/types'
 
@@ -10,7 +10,8 @@ const collapsed = useNavCollapsed()
 const person = ref<Person>('thomas')
 const isDragging = ref(false)
 const file = ref<File | null>(null)
-const preview = ref<Awaited<ReturnType<typeof parseCSV>> | null>(null)
+const preview = ref<ReturnType<typeof parseCSV> | null>(null)
+const resolved = ref<Awaited<ReturnType<typeof readAndDetect>> | null>(null)
 const error = ref<string | null>(null)
 const isImporting = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -24,23 +25,12 @@ async function processFile(f: File) {
   file.value = f
   error.value = null
   preview.value = null
+  resolved.value = null
 
   try {
-    const content = await readFileAsText(f, 'ISO-8859-1')
-    const format = detectFormat(f.name, content)
-
-    if (!format) {
-      const contentUtf8 = await readFileAsText(f, 'UTF-8')
-      const formatUtf8 = detectFormat(f.name, contentUtf8)
-      if (!formatUtf8) {
-        error.value = 'Format de banque non reconnu. Seul le Crédit Agricole est supporté pour l\'instant.'
-        file.value = null
-        return
-      }
-      preview.value = parseCSV(contentUtf8, f.name, person.value, formatUtf8)
-    } else {
-      preview.value = parseCSV(content, f.name, person.value, format)
-    }
+    const detected = await readAndDetect(f)
+    resolved.value = detected
+    preview.value = parseCSV(detected.content, f.name, person.value, detected.format)
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Erreur lors de la lecture du fichier.'
     file.value = null
@@ -59,12 +49,10 @@ function onFileChange(e: Event) {
 }
 
 async function confirmImport(close: () => void) {
-  if (!preview.value || !file.value) return
+  if (!preview.value || !file.value || !resolved.value) return
   isImporting.value = true
   try {
-    const content = await readFileAsText(file.value, 'ISO-8859-1')
-    const format = detectFormat(file.value.name, content) ?? 'credit-agricole'
-    const result = parseCSV(content, file.value.name, person.value, format)
+    const result = parseCSV(resolved.value.content, file.value.name, person.value, resolved.value.format)
 
     await store.addImport(result.transactions, result.session)
     toast.add({
@@ -83,6 +71,7 @@ async function confirmImport(close: () => void) {
 function resetState() {
   file.value = null
   preview.value = null
+  resolved.value = null
   error.value = null
   person.value = 'thomas'
 }
@@ -140,7 +129,7 @@ function resetState() {
             ou cliquer pour parcourir
           </p>
           <p class="text-xs text-(--ui-text-muted) mt-3 opacity-60">
-            Crédit Agricole · ISO-8859-1
+            Crédit Agricole · Boursorama
           </p>
           <input
             ref="fileInput"

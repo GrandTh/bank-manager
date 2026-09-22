@@ -307,3 +307,39 @@ describe('useTransactionsStore — addCategory / removeCategory', () => {
     expect(store.categoryMap['vacances']).toBeUndefined()
   })
 })
+
+describe('useTransactionsStore — previousYearMonth', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('retourne null quand aucun mois courant', () => {
+    const store = useTransactionsStore()
+    expect(store.previousYearMonth).toBeNull()
+  })
+
+  it('retourne le mois précédent', () => {
+    const store = useTransactionsStore()
+    store.selectedYearMonth = '2026-04'
+    expect(store.previousYearMonth).toBe('2026-03')
+  })
+
+  it('recule sur l\'année précédente en janvier', () => {
+    const store = useTransactionsStore()
+    store.selectedYearMonth = '2026-01'
+    expect(store.previousYearMonth).toBe('2025-12')
+  })
+
+  it('conserve le zéro de tête sur les mois à un chiffre', () => {
+    const store = useTransactionsStore()
+    store.selectedYearMonth = '2026-10'
+    expect(store.previousYearMonth).toBe('2026-09')
+  })
+
+  it('suit le mois courant déduit des transactions', () => {
+    const store = useTransactionsStore()
+    store.transactions = [makeTx({ date: '2026-03-10' }), makeTx({ date: '2026-05-10' })]
+    expect(store.currentYearMonth).toBe('2026-05')
+    expect(store.previousYearMonth).toBe('2026-04')
+  })
+})
